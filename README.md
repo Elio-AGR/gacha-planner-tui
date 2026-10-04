@@ -1,10 +1,28 @@
 # ✦ Gacha Pulls & Banner Planner ✦
 
-> *A sleek, Cyberpunk / Catppuccin Mocha TUI application for tracking gacha savings, soft/hard pity counters, and banner guarantee readiness across **Honkai: Star Rail** & **Reverse: 1999**.*
+> *A sleek, Cyberpunk / Catppuccin Mocha TUI application for tracking gacha savings, soft/hard pity counters, win rates, and banner guarantee projections across **Honkai: Star Rail** & **Reverse: 1999**.*
 
-![Go Version](https://img.shields.io/badge/Go-1.27%2B-00ADD8?style=for-the-badge&logo=go)
-![TUI Framework](https://img.shields.io/badge/Charm-Bubbletea%20%26%20Bubbles-cba6f7?style=for-the-badge)
-![Theme](https://img.shields.io/badge/Theme-Catppuccin%20Mocha-fab387?style=for-the-badge)
+[![Build Status](https://github.com/Elio-AGR/gacha-planner-tui/actions/workflows/go.yml/badge.svg)](https://github.com/Elio-AGR/gacha-planner-tui/actions)
+![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8?style=flat&logo=go)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![TUI Framework](https://img.shields.io/badge/Charm-Bubbletea%20%26%20Bubbles-cba6f7?style=flat)
+![Theme](https://img.shields.io/badge/Theme-Catppuccin%20Mocha-fab387?style=flat)
+
+---
+
+## 🚀 Quick Installation
+
+Install directly using Go (1.22+):
+
+```bash
+go install github.com/Elio-AGR/gacha-planner-tui@latest
+```
+
+Once installed, simply run:
+
+```bash
+gacha-planner-tui
+```
 
 ---
 
@@ -13,7 +31,7 @@
 - 📜 **Timeless Generic Timeframe Presets**: Zero-maintenance preset selector for banner timeframes (`Current Banner Phase (+14d)`, `Next Phase (+21d)`, `Next Patch (+42d)`, `In 2 Patches (+84d)`, `Anniversary Event (+126d)`, or `Custom Manual Input`). Never becomes outdated with game version updates!
 - 🎲 **Probability & Win Rate Calculator**: Real-time cumulative probability percentage calculation for target characters considering pity, soft pity ramp, hard pity, and 50/50 state.
 - 📆 **Daily Income & Banner Countdown Projection**: Project total pull budget when banner ends (`Current Pulls + (Days * Daily Income / Rate)`) with clear readiness badges (`✅ Target Achievable` / `⚡ Short by X Pulls`).
-- 📝 **Interactive Form Input**: Real-time form fields built with `bubbles/textinput` for editing Stellar Jades, Special Passes, Clear Drops, Unilogs, Current Pity, and Guaranteed 50/50 status.
+- 📝 **1-Column Interactive Form**: Single-column aligned form built with `bubbles/textinput` for editing Stellar Jades, Special Passes, Clear Drops, Unilogs, Current Pity, and Guaranteed 50/50 status.
 - 📊 **Side-by-Side Dashboard**: High-level overview displaying total savings, total combined pulls, current pity states, and visual readiness indicators.
 - 💾 **Real-Time JSON Persistence**: Auto-saves user savings & pity profile at `~/.config/gacha-planner/data.json` immediately as you type.
 - 🎨 **Catppuccin Mocha Aesthetics**: Custom color palette designed with Lipgloss for dark & vibrant terminal aesthetics.
@@ -24,17 +42,17 @@
 
 | Component | Technology | Description |
 |---|---|---|
-| **Language** | [Go](https://go.dev/) (1.27+) | High performance compiled language |
+| **Language** | [Go](https://go.dev/) (1.22+) | High performance compiled language |
 | **TUI Engine** | [Charm Bubbletea](https://github.com/charmbracelet/bubbletea) | Elm architecture for terminal UIs |
 | **Form & Viewport** | [Charm Bubbles](https://github.com/charmbracelet/bubbles) | Interactive `textinput` & scrollable `viewport` |
 | **Styling Engine** | [Charm Lipgloss](https://github.com/charmbracelet/lipgloss) | Declarative terminal styling & layouts |
 
 ---
 
-## 🚀 Quick Start
+## 💻 Building from Source
 
 ### Prerequisites
-Make sure you have [Go](https://go.dev/dl/) installed (version 1.21+ or 1.27+).
+Make sure you have [Go](https://go.dev/dl/) installed (version 1.22+).
 
 ### 1. Clone & Run Directly
 ```bash
@@ -79,8 +97,8 @@ go test -v ./...
 
 ## 📚 References & Resources
 
-- **Reverse: 1999 CN Banner History & Schedule Spreadsheet**:
-  [Prydwen Reverse: 1999 CN Banner History](https://docs.google.com/spreadsheets/u/1/d/e/2PACX-1vSZ_xS_5dfuvV7-yfitOqCw7e8VVkqtfWCAkcFpXLYTvx7XXR7lg2e1wjTLBZJJAleeEKm-f1Y7gNI_/pubhtml) — Use this community-maintained schedule reference to check exact estimated days and target banner releases.
+- **Reverse: 1999 CN Banner History & Schedule Spreadsheet**:  
+  [Prydwen Reverse: 1999 CN Banner History Spreadsheet](https://docs.google.com/spreadsheets/u/1/d/e/2PACX-1vSZ_xS_5dfuvV7-yfitOqCw7e8VVkqtfWCAkcFpXLYTvx7XXR7lg2e1wjTLBZJJAleeEKm-f1Y7gNI_/pubhtml) — Community-maintained schedule reference to check exact estimated days and target banner releases.
 
 ---
 
@@ -95,4 +113,4 @@ User data is stored locally in JSON format:
 
 ## 📄 License
 
-Distributed under the MIT License.
+Distributed under the [MIT License](LICENSE).
