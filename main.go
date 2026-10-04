@@ -352,10 +352,9 @@ func (m model) View() string {
 
 func renderHeader(width int) string {
 	title := ui.HeaderTitleStyle.Render("✦ GACHA PULLS & BANNER PLANNER ✦")
-	subTitle := ui.HeaderSubTitleStyle.Render("🎲 Catppuccin Mocha Cyberpunk Edition")
 	badge := ui.BadgeStyle.Render("v1.0.0")
 
-	leftSide := lipgloss.JoinHorizontal(lipgloss.Center, title, subTitle)
+	leftSide := title
 	rightSide := badge
 
 	gap := width - lipgloss.Width(leftSide) - lipgloss.Width(rightSide) - 2
