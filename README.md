@@ -10,16 +10,11 @@
 
 ## 🌟 Features
 
+- 📜 **Timeless Generic Timeframe Presets**: Zero-maintenance preset selector for banner timeframes (`Current Banner Phase (+14d)`, `Next Phase (+21d)`, `Next Patch (+42d)`, `In 2 Patches (+84d)`, `Anniversary Event (+126d)`, or `Custom Manual Input`). Never becomes outdated with game version updates!
+- 🎲 **Probability & Win Rate Calculator**: Real-time cumulative probability percentage calculation for target characters considering pity, soft pity ramp, hard pity, and 50/50 state.
+- 📆 **Daily Income & Banner Countdown Projection**: Project total pull budget when banner ends (`Current Pulls + (Days * Daily Income / Rate)`) with clear readiness badges (`✅ Target Achievable` / `⚡ Short by X Pulls`).
 - 📝 **Interactive Form Input**: Real-time form fields built with `bubbles/textinput` for editing Stellar Jades, Special Passes, Clear Drops, Unilogs, Current Pity, and Guaranteed 50/50 status.
-- 📊 **Side-by-Side Dashboard**: High-level overview displaying total savings, total combined pulls, current pity states, and visual readiness indicators (`✅ Ready for Guarantee` / `⚡ Need X More Pulls`).
-- 🌌 **Honkai: Star Rail Planner**:
-  - Currency conversion: `160 Stellar Jades = 1 Special Pass`.
-  - Pity Engine: Soft pity at `74`, Hard pity at `90`.
-  - Worst-case guarantee calculator (`90` pulls if Guaranteed, `180` pulls if 50/50).
-- 📜 **Reverse: 1999 Planner**:
-  - Currency conversion: `180 Clear Drops = 1 Unilog`.
-  - Pity Engine: Soft pity at `60`, Hard pity at `70`.
-  - Worst-case guarantee calculator (`70` pulls if Guaranteed, `140` pulls if 50/50).
+- 📊 **Side-by-Side Dashboard**: High-level overview displaying total savings, total combined pulls, current pity states, and visual readiness indicators.
 - 💾 **Real-Time JSON Persistence**: Auto-saves user savings & pity profile at `~/.config/gacha-planner/data.json` immediately as you type.
 - 🎨 **Catppuccin Mocha Aesthetics**: Custom color palette designed with Lipgloss for dark & vibrant terminal aesthetics.
 
@@ -31,7 +26,7 @@
 |---|---|---|
 | **Language** | [Go](https://go.dev/) (1.27+) | High performance compiled language |
 | **TUI Engine** | [Charm Bubbletea](https://github.com/charmbracelet/bubbletea) | Elm architecture for terminal UIs |
-| **Form Component** | [Charm Bubbles](https://github.com/charmbracelet/bubbles) | Interactive `textinput` form components |
+| **Form & Viewport** | [Charm Bubbles](https://github.com/charmbracelet/bubbles) | Interactive `textinput` & scrollable `viewport` |
 | **Styling Engine** | [Charm Lipgloss](https://github.com/charmbracelet/lipgloss) | Declarative terminal styling & layouts |
 
 ---
@@ -74,9 +69,18 @@ go test -v ./...
 | `1` / `2` / `3` | Switch directly to **Dashboard**, **R1999**, or **HSR** tab |
 | `Tab` / `Shift+Tab` | Cycle forward / backward through tabs |
 | `↑` / `↓` or `Enter` | Navigate between form input fields |
+| `←` / `→` or `Space` | Cycle **Timeframe Presets** (when focused on Timeframe Preset row) |
 | `Type (0-9)` | Edit numeric values in real-time |
-| `Space` or `g` | Toggle Guaranteed status (when on Guaranteed row) |
-| `q` or `Ctrl+C` | Auto-save profile & quit application |
+| `Space` or `g` | Toggle Guaranteed status (when focused on Guaranteed row) |
+| `PgUp` / `PgDn` | Scroll viewport content |
+| `Esc`, `Ctrl+C` or `q` | Auto-save profile & quit application |
+
+---
+
+## 📚 References & Resources
+
+- **Reverse: 1999 CN Banner History & Schedule Spreadsheet**:
+  [Prydwen Reverse: 1999 CN Banner History](https://docs.google.com/spreadsheets/u/1/d/e/2PACX-1vSZ_xS_5dfuvV7-yfitOqCw7e8VVkqtfWCAkcFpXLYTvx7XXR7lg2e1wjTLBZJJAleeEKm-f1Y7gNI_/pubhtml) — Use this community-maintained schedule reference to check exact estimated days and target banner releases.
 
 ---
 

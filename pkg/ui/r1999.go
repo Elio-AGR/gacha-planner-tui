@@ -10,25 +10,37 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// RenderR1999View renders the interactive Reverse: 1999 planner tab.
-func RenderR1999View(profile models.R1999Profile, inputs [3]textinput.Model, focusIndex int, width int, height int) string {
+// RenderR1999View renders the 1-column interactive Reverse: 1999 planner tab.
+func RenderR1999View(profile models.R1999Profile, inputs [5]textinput.Model, focusIndex int, width int, height int) string {
 	res := calculator.CalculateR1999(profile)
 
-	title := lipgloss.NewStyle().Bold(true).Foreground(ColorTeal).Render("📜 REVERSE: 1999 PLANNER & INPUT FORM")
+	presetIndex := profile.TargetBannerIndex
+	if presetIndex < 0 || presetIndex >= len(models.R1999BannerPresets) {
+		presetIndex = 0
+	}
+	currentPreset := models.R1999BannerPresets[presetIndex]
 
-	pityStatus := "50/50 Next (On Banner)"
+	title := lipgloss.NewStyle().Bold(true).Foreground(ColorTeal).Render("📜 REVERSE: 1999 PLANNER & BANNER TIMEFRAME SELECTOR")
+
+	pityStatus := "50/50 Next"
 	if profile.IsGuaranteed {
-		pityStatus = "GUARANTEED (100% Rate Up)"
+		pityStatus = "GUARANTEED"
 	}
 
 	var statusBadge string
 	if res.CanGuaranteeTarget {
-		statusBadge = StatusReadyStyle.Render("✅ GUARANTEED TARGET SECURED")
+		statusBadge = StatusReadyStyle.Render("✅ GUARANTEED SECURED NOW")
 	} else {
-		statusBadge = StatusNeedPullsStyle.Render(fmt.Sprintf("⚡ NEED %d MORE PULLS TO GUARANTEE TARGET", res.RemainingPullsToTarget))
+		statusBadge = StatusNeedPullsStyle.Render(fmt.Sprintf("⚡ NEED %d MORE PULLS NOW", res.RemainingPullsToTarget))
 	}
 
-	// Focus indicators for rows
+	var projBadge string
+	if res.ProjectedCanGuarantee {
+		projBadge = StatusReadyStyle.Render("✅ TARGET ACHIEVABLE BY BANNER END")
+	} else {
+		projBadge = StatusNeedPullsStyle.Render(fmt.Sprintf("⚡ SHORT BY %d PULLS BY BANNER END", res.ProjectedShortfall))
+	}
+
 	pointer := func(idx int) string {
 		if idx == focusIndex {
 			return lipgloss.NewStyle().Foreground(ColorTeal).Bold(true).Render("▶ ")
@@ -36,10 +48,10 @@ func RenderR1999View(profile models.R1999Profile, inputs [3]textinput.Model, foc
 		return "  "
 	}
 
-	// Toggle row view
-	toggleText := "[ ⚡ 50/50 NEXT ] (Press Space/g/Enter to toggle)"
+	// Toggle Row Text (Focus Index 3)
+	toggleText := "[ ⚡ 50/50 NEXT ] (Space/g/Enter)"
 	if profile.IsGuaranteed {
-		toggleText = "[ ✅ GUARANTEED ] (Press Space/g/Enter to toggle)"
+		toggleText = "[ ✅ GUARANTEED ] (Space/g/Enter)"
 	}
 	if focusIndex == 3 {
 		toggleText = lipgloss.NewStyle().Foreground(ColorCrust).Background(ColorTeal).Bold(true).Render(toggleText)
@@ -47,46 +59,65 @@ func RenderR1999View(profile models.R1999Profile, inputs [3]textinput.Model, foc
 		toggleText = lipgloss.NewStyle().Foreground(ColorTeal).Bold(true).Render(toggleText)
 	}
 
-	formRows := []string{
-		fmt.Sprintf("%s%s : %s", pointer(0), LabelStyle.Width(20).Render("Clear Drops"), inputs[0].View()),
-		fmt.Sprintf("%s%s : %s", pointer(1), LabelStyle.Width(20).Render("Unilogs"), inputs[1].View()),
-		fmt.Sprintf("%s%s : %s", pointer(2), LabelStyle.Width(20).Render("Current Pity (0-70)"), inputs[2].View()),
-		fmt.Sprintf("%s%s : %s", pointer(3), LabelStyle.Width(20).Render("Guaranteed Status"), toggleText),
+	// Preset Selector Text (Focus Index 6)
+	bannerSelectorText := fmt.Sprintf("[◄ %s ►] (←/→/Space)", currentPreset.Name)
+	if focusIndex == 6 {
+		bannerSelectorText = lipgloss.NewStyle().Foreground(ColorCrust).Background(ColorTeal).Bold(true).Render(bannerSelectorText)
+	} else {
+		bannerSelectorText = lipgloss.NewStyle().Foreground(ColorTeal).Bold(true).Render(bannerSelectorText)
 	}
+
+	lbl := func(text string) string {
+		return LabelStyle.Render(fmt.Sprintf("%-24s", text))
+	}
+
+	// 1-Column Form Rows in exact requested order
+	row1 := fmt.Sprintf("%s%s: %s", pointer(0), lbl("Clear Drops"), inputs[0].View())
+	row2 := fmt.Sprintf("%s%s: %s", pointer(1), lbl("Unilogs"), inputs[1].View())
+	row3 := fmt.Sprintf("%s%s: %s", pointer(2), lbl("Current Pity (0-70)"), inputs[2].View())
+	row4 := fmt.Sprintf("%s%s: %s", pointer(3), lbl("Rate-Up Guaranteed"), toggleText)
+	row5 := fmt.Sprintf("%s%s: %s", pointer(4), lbl("Days Remaining (Manual)"), inputs[3].View())
+	row6 := fmt.Sprintf("%s%s: %s", pointer(5), lbl("Daily Income (Drops)"), inputs[4].View())
+	row7 := fmt.Sprintf("%s%s: %s", pointer(6), lbl("Quick Timeframe Preset"), bannerSelectorText)
+	row7Hint := lipgloss.NewStyle().Foreground(ColorSubtext0).Italic(true).Render("   ↳ Quick Fill Helper (Auto-sets Days Remaining; manual edit supported)")
 
 	formBox := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(ColorSurface2).
 		Padding(0, 1).
-		Render(strings.Join(formRows, "\n"))
+		Render(strings.Join([]string{row1, row2, row3, row4, row5, row6, row7, row7Hint}, "\n"))
+
+	winRateStr := fmt.Sprintf("%.1f%%", res.WinRate)
 
 	calcRows := []string{
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Unilogs from Drops"), ValTealStyle.Render(fmt.Sprintf("%d Unilogs", res.UnilogsFromDrops))),
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Total Pulls Available"), ValGreenStyle.Render(fmt.Sprintf("%d Pulls", res.TotalPullsAvailable))),
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Current Pity State"), ValYellowStyle.Render(fmt.Sprintf("%d / %d (%s)", profile.CurrentPity, calculator.R1999HardPity, pityStatus))),
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Planner Status"), statusBadge),
-		"",
-		ValSubtextStyle.Render(fmt.Sprintf("• Soft Pity Threshold (60) : %d pulls remaining", res.SoftPityRemaining)),
-		ValSubtextStyle.Render(fmt.Sprintf("• 6★ Hard Pity Threshold    : %d pulls remaining", res.PullsToFirst6Star)),
-		ValSubtextStyle.Render(fmt.Sprintf("• Max Pulls for Target      : %d total pulls needed from 0 pity", res.MaxPullsToTarget)),
+		fmt.Sprintf("%s %s | %s %s | %s %s",
+			LabelStyle.Render("Timeframe Preset:"), ValTealStyle.Render(currentPreset.Name),
+			LabelStyle.Render("Current Pulls:"), ValGreenStyle.Render(fmt.Sprintf("%d", res.TotalPullsAvailable)),
+			LabelStyle.Render("Win Rate:"), ValGreenStyle.Render(winRateStr),
+		),
+		fmt.Sprintf("%s %s | %s %s | %s %s",
+			LabelStyle.Render("Current Pity    :"), ValYellowStyle.Render(fmt.Sprintf("%d / %d (%s)", profile.CurrentPity, calculator.R1999HardPity, pityStatus)),
+			LabelStyle.Render("Soft Pity in:"), ValSubtextStyle.Render(fmt.Sprintf("%dp", res.SoftPityRemaining)),
+			LabelStyle.Render("Hard Pity in:"), ValSubtextStyle.Render(fmt.Sprintf("%dp", res.PullsToFirst6Star)),
+		),
+		fmt.Sprintf("%s %s", LabelStyle.Render("Current Status       :"), statusBadge),
+		fmt.Sprintf("%s +%d Pulls (+%d Drops in %dd) ➔ %s %d Total Pulls",
+			LabelStyle.Render("Projected Income     :"), res.IncomePulls, profile.BannerDays*profile.DailyIncome, profile.BannerDays,
+			LabelStyle.Render("End-of-Banner:"), res.ProjectedPulls,
+		),
+		fmt.Sprintf("%s %s", LabelStyle.Render("Projection Status    :"), projBadge),
 	}
 
-	infoBox := lipgloss.NewStyle().
-		MarginTop(1).
+	calcBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ColorSurface2).
+		BorderForeground(ColorTeal).
 		Padding(0, 1).
-		Render(ValSubtextStyle.Render("💡 Tip: Use ↑/↓ to navigate fields. Type to edit values. Changes auto-save instantly."))
+		Render(strings.Join(calcRows, "\n"))
 
-	return R1999CardStyle.
-		Width(width - 6).
-		Render(lipgloss.JoinVertical(
-			lipgloss.Left,
-			title,
-			"",
-			formBox,
-			"",
-			strings.Join(calcRows, "\n"),
-			infoBox,
-		))
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		title,
+		formBox,
+		calcBox,
+	)
 }

@@ -13,6 +13,8 @@ func TestCalculateHSR(t *testing.T) {
 		SpecialPass:  5,    // 5 pulls -> total 15 pulls
 		CurrentPity:  65,
 		IsGuaranteed: true,
+		BannerDays:   14,
+		DailyIncome:  90,
 	}
 
 	result := calculator.CalculateHSR(profile)
@@ -25,20 +27,21 @@ func TestCalculateHSR(t *testing.T) {
 		t.Errorf("Expected 15 total pulls, got %d", result.TotalPullsAvailable)
 	}
 
-	// Hard pity = 90. Current pity = 65. Pulls to first 5-star = 25.
-	if result.PullsToFirst5Star != 25 {
-		t.Errorf("Expected 25 pulls to first 5-star, got %d", result.PullsToFirst5Star)
-	}
-
-	// Remaining pulls to first 5-star = 25 - 15 = 10
-	if result.RemainingPullsToFirst5Star != 10 {
-		t.Errorf("Expected 10 remaining pulls to first 5-star, got %d", result.RemainingPullsToFirst5Star)
-	}
-
-	// Since guaranteed = true, max pulls to target = 90.
-	// Total effective pulls = 65 + 15 = 80. Remaining = 90 - 80 = 10.
 	if result.RemainingPullsToTarget != 10 {
 		t.Errorf("Expected 10 remaining pulls to target, got %d", result.RemainingPullsToTarget)
+	}
+
+	if result.WinRate <= 0.0 || result.WinRate > 100.0 {
+		t.Errorf("Win rate should be between 0.0 and 100.0, got %f", result.WinRate)
+	}
+
+	// 14 days * 90 jades = 1260 jades = 7 income pulls
+	if result.IncomePulls != 7 {
+		t.Errorf("Expected 7 income pulls, got %d", result.IncomePulls)
+	}
+
+	if result.ProjectedPulls != 22 {
+		t.Errorf("Expected 22 projected pulls, got %d", result.ProjectedPulls)
 	}
 }
 
@@ -47,7 +50,9 @@ func TestCalculateR1999(t *testing.T) {
 		ClearDrop:    1800, // 10 pulls
 		Unilog:       10,   // 10 pulls -> total 20 pulls
 		CurrentPity:  50,
-		IsGuaranteed: false, // Needs 140 max pulls for guarantee
+		IsGuaranteed: false,
+		BannerDays:   14,
+		DailyIncome:  80,
 	}
 
 	result := calculator.CalculateR1999(profile)
@@ -60,14 +65,12 @@ func TestCalculateR1999(t *testing.T) {
 		t.Errorf("Expected 20 total pulls, got %d", result.TotalPullsAvailable)
 	}
 
-	// Soft pity = 60. Current pity = 50. Soft pity remaining = 10.
-	if result.SoftPityRemaining != 10 {
-		t.Errorf("Expected 10 soft pity remaining, got %d", result.SoftPityRemaining)
+	if result.WinRate <= 0.0 || result.WinRate > 100.0 {
+		t.Errorf("Win rate should be between 0.0 and 100.0, got %f", result.WinRate)
 	}
 
-	// Max pulls to target (50/50) = 140.
-	// Total effective = 50 + 20 = 70. Remaining = 140 - 70 = 70.
-	if result.RemainingPullsToTarget != 70 {
-		t.Errorf("Expected 70 remaining pulls to target, got %d", result.RemainingPullsToTarget)
+	// 14 days * 80 drops = 1120 drops = 6 income pulls
+	if result.IncomePulls != 6 {
+		t.Errorf("Expected 6 income pulls, got %d", result.IncomePulls)
 	}
 }

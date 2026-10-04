@@ -11,6 +11,7 @@ import (
 	"github.com/Elio-AGR/gacha-planner-tui/pkg/models"
 	"github.com/Elio-AGR/gacha-planner-tui/pkg/ui"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -35,20 +36,25 @@ type model struct {
 	height    int
 	profile   models.UserProfile
 
-	// Form inputs for HSR
-	hsrFocusIndex int
-	hsrInputs     [3]textinput.Model // 0: Jades, 1: Passes, 2: Pity
+	viewport viewport.Model
+	ready    bool
 
-	// Form inputs for R1999
+	// Form inputs for HSR (0: Jades, 1: Passes, 2: Pity, 3: Banner Days, 4: Daily Income)
+	// Focus indices (0..6): 0:Jades, 1:Passes, 2:Pity, 3:Toggle Guaranteed, 4:Banner Days, 5:Daily Income, 6:Preset Helper
+	hsrFocusIndex int
+	hsrInputs     [5]textinput.Model
+
+	// Form inputs for R1999 (0: Drops, 1: Unilogs, 2: Pity, 3: Banner Days, 4: Daily Income)
+	// Focus indices (0..6): 0:Drops, 1:Unilogs, 2:Pity, 3:Toggle Guaranteed, 4:Banner Days, 5:Daily Income, 6:Preset Helper
 	r1999FocusIndex int
-	r1999Inputs     [3]textinput.Model // 0: Drops, 1: Unilogs, 2: Pity
+	r1999Inputs     [5]textinput.Model
 }
 
 func createNumInput(placeholder string, val int) textinput.Model {
 	ti := textinput.New()
 	ti.Placeholder = placeholder
 	ti.CharLimit = 7
-	ti.Width = 10
+	ti.Width = 8
 	ti.SetValue(fmt.Sprintf("%d", val))
 	ti.Prompt = " "
 	return ti
@@ -63,7 +69,7 @@ func initialModel() model {
 	m := model{
 		activeTab:       TabDashboard,
 		width:           90,
-		height:          30,
+		height:          24,
 		profile:         profile,
 		hsrFocusIndex:   0,
 		r1999FocusIndex: 0,
@@ -73,22 +79,32 @@ func initialModel() model {
 	m.hsrInputs[0] = createNumInput("19200", profile.HSR.StellarJade)
 	m.hsrInputs[1] = createNumInput("15", profile.HSR.SpecialPass)
 	m.hsrInputs[2] = createNumInput("65", profile.HSR.CurrentPity)
+	m.hsrInputs[3] = createNumInput("14", profile.HSR.BannerDays)
+	m.hsrInputs[4] = createNumInput("90", profile.HSR.DailyIncome)
 
 	// Initialize R1999 Inputs
 	m.r1999Inputs[0] = createNumInput("14400", profile.R1999.ClearDrop)
 	m.r1999Inputs[1] = createNumInput("68", profile.R1999.Unilog)
 	m.r1999Inputs[2] = createNumInput("42", profile.R1999.CurrentPity)
+	m.r1999Inputs[3] = createNumInput("14", profile.R1999.BannerDays)
+	m.r1999Inputs[4] = createNumInput("80", profile.R1999.DailyIncome)
 
 	m.focusCurrentInput()
 	return m
 }
 
 func (m model) isInputFocused() bool {
-	if m.activeTab == TabHSR && m.hsrFocusIndex >= 0 && m.hsrFocusIndex < 3 {
-		return true
+	if m.activeTab == TabHSR {
+		switch m.hsrFocusIndex {
+		case 0, 1, 2, 4, 5:
+			return true
+		}
 	}
-	if m.activeTab == TabR1999 && m.r1999FocusIndex >= 0 && m.r1999FocusIndex < 3 {
-		return true
+	if m.activeTab == TabR1999 {
+		switch m.r1999FocusIndex {
+		case 0, 1, 2, 4, 5:
+			return true
+		}
 	}
 	return false
 }
@@ -98,16 +114,38 @@ func (m *model) focusCurrentInput() {
 	for i := range m.hsrInputs {
 		m.hsrInputs[i].Blur()
 	}
-	if m.activeTab == TabHSR && m.hsrFocusIndex >= 0 && m.hsrFocusIndex < 3 {
-		m.hsrInputs[m.hsrFocusIndex].Focus()
+	if m.activeTab == TabHSR {
+		switch m.hsrFocusIndex {
+		case 0:
+			m.hsrInputs[0].Focus()
+		case 1:
+			m.hsrInputs[1].Focus()
+		case 2:
+			m.hsrInputs[2].Focus()
+		case 4:
+			m.hsrInputs[3].Focus()
+		case 5:
+			m.hsrInputs[4].Focus()
+		}
 	}
 
 	// Blur all R1999 inputs
 	for i := range m.r1999Inputs {
 		m.r1999Inputs[i].Blur()
 	}
-	if m.activeTab == TabR1999 && m.r1999FocusIndex >= 0 && m.r1999FocusIndex < 3 {
-		m.r1999Inputs[m.r1999FocusIndex].Focus()
+	if m.activeTab == TabR1999 {
+		switch m.r1999FocusIndex {
+		case 0:
+			m.r1999Inputs[0].Focus()
+		case 1:
+			m.r1999Inputs[1].Focus()
+		case 2:
+			m.r1999Inputs[2].Focus()
+		case 4:
+			m.r1999Inputs[3].Focus()
+		case 5:
+			m.r1999Inputs[4].Focus()
+		}
 	}
 }
 
@@ -134,6 +172,20 @@ func (m *model) syncHSRProfile() {
 			pity = 90
 		}
 		m.profile.HSR.CurrentPity = pity
+	}
+
+	valStr = m.hsrInputs[3].Value()
+	if valStr == "" {
+		m.profile.HSR.BannerDays = 0
+	} else if days, err := strconv.Atoi(valStr); err == nil && days >= 0 {
+		m.profile.HSR.BannerDays = days
+	}
+
+	valStr = m.hsrInputs[4].Value()
+	if valStr == "" {
+		m.profile.HSR.DailyIncome = 0
+	} else if inc, err := strconv.Atoi(valStr); err == nil && inc >= 0 {
+		m.profile.HSR.DailyIncome = inc
 	}
 
 	_ = config.SaveProfile(m.profile)
@@ -164,11 +216,44 @@ func (m *model) syncR1999Profile() {
 		m.profile.R1999.CurrentPity = pity
 	}
 
+	valStr = m.r1999Inputs[3].Value()
+	if valStr == "" {
+		m.profile.R1999.BannerDays = 0
+	} else if days, err := strconv.Atoi(valStr); err == nil && days >= 0 {
+		m.profile.R1999.BannerDays = days
+	}
+
+	valStr = m.r1999Inputs[4].Value()
+	if valStr == "" {
+		m.profile.R1999.DailyIncome = 0
+	} else if inc, err := strconv.Atoi(valStr); err == nil && inc >= 0 {
+		m.profile.R1999.DailyIncome = inc
+	}
+
 	_ = config.SaveProfile(m.profile)
 }
 
 func (m model) Init() tea.Cmd {
 	return textinput.Blink
+}
+
+func (m model) updateViewportContent() string {
+	var rawContent string
+	vpHeight := m.viewport.Height
+	if vpHeight < 5 {
+		vpHeight = 5
+	}
+
+	switch m.activeTab {
+	case TabDashboard:
+		rawContent = ui.RenderDashboard(m.profile, m.width, vpHeight)
+	case TabR1999:
+		rawContent = ui.RenderR1999View(m.profile.R1999, m.r1999Inputs, m.r1999FocusIndex, m.width, vpHeight)
+	case TabHSR:
+		rawContent = ui.RenderHSRView(m.profile.HSR, m.hsrInputs, m.hsrFocusIndex, m.width, vpHeight)
+	}
+
+	return rawContent
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -179,136 +264,335 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
+		headerHeight := lipgloss.Height(renderHeader(msg.Width)) + lipgloss.Height(renderTabs(m.activeTab, msg.Width)) + 2
+		footerHeight := lipgloss.Height(renderFooter(msg.Width)) + 1
+		vpHeight := msg.Height - headerHeight - footerHeight
+		if vpHeight < 5 {
+			vpHeight = 5
+		}
+
+		if !m.ready {
+			m.viewport = viewport.New(msg.Width, vpHeight)
+			m.viewport.SetContent(m.updateViewportContent())
+			m.ready = true
+		} else {
+			m.viewport.Width = msg.Width
+			m.viewport.Height = vpHeight
+			m.viewport.SetContent(m.updateViewportContent())
+		}
+
 	case tea.KeyMsg:
 		keyStr := msg.String()
 		isFocused := m.isInputFocused()
 
-		// Emergency exit always available
-		if keyStr == "ctrl+c" {
+		// 1. Emergency Exit (Ctrl+C, Esc)
+		if keyStr == "ctrl+c" || keyStr == "esc" {
 			_ = config.SaveProfile(m.profile)
 			return m, tea.Quit
 		}
 
-		// Quit shortcut 'q' only active when NOT focused inside a numeric text input
+		// 2. Quit shortcut 'q' active when NOT focused in text input
 		if keyStr == "q" && !isFocused {
 			_ = config.SaveProfile(m.profile)
 			return m, tea.Quit
 		}
 
-		// Tab switching via Tab / Shift+Tab always available
+		// 3. Viewport Scrolling via PgUp / PgDn / Shift+Up / Shift+Down
+		switch keyStr {
+		case "pgup", "shift+up":
+			m.viewport.HalfViewUp()
+			return m, nil
+		case "pgdown", "shift+down":
+			m.viewport.HalfViewDown()
+			return m, nil
+		}
+
+		// 4. Tab switching via Tab / Shift+Tab (Always handled top-level)
 		if keyStr == "tab" {
 			m.activeTab = (m.activeTab + 1) % len(tabNames)
 			m.focusCurrentInput()
+			if m.ready {
+				m.viewport.SetContent(m.updateViewportContent())
+			}
 			return m, nil
 		}
 		if keyStr == "shift+tab" {
 			m.activeTab = (m.activeTab - 1 + len(tabNames)) % len(tabNames)
 			m.focusCurrentInput()
+			if m.ready {
+				m.viewport.SetContent(m.updateViewportContent())
+			}
 			return m, nil
 		}
 
-		// Direct numeric tab selection (1, 2, 3) only active when NOT focused in text input
+		// 5. Direct numeric tab selection (1, 2, 3) active when NOT focused in text input
 		if !isFocused {
 			switch keyStr {
 			case "1":
 				m.activeTab = TabDashboard
 				m.focusCurrentInput()
+				if m.ready {
+					m.viewport.SetContent(m.updateViewportContent())
+				}
 				return m, nil
 			case "2":
 				m.activeTab = TabR1999
 				m.focusCurrentInput()
+				if m.ready {
+					m.viewport.SetContent(m.updateViewportContent())
+				}
 				return m, nil
 			case "3":
 				m.activeTab = TabHSR
 				m.focusCurrentInput()
+				if m.ready {
+					m.viewport.SetContent(m.updateViewportContent())
+				}
 				return m, nil
 			}
 		}
 
-		// Handle Form Navigation and Text Editing per Tab
+		// 6. Up & Down Form Field Navigation, Preset Cycling & Toggle Handling
 		if m.activeTab == TabHSR {
 			switch keyStr {
 			case "up":
-				m.hsrFocusIndex = (m.hsrFocusIndex - 1 + 4) % 4
+				m.hsrFocusIndex = (m.hsrFocusIndex - 1 + 7) % 7
 				m.focusCurrentInput()
+				if m.ready {
+					m.viewport.SetContent(m.updateViewportContent())
+				}
 				return m, nil
 			case "down":
-				m.hsrFocusIndex = (m.hsrFocusIndex + 1) % 4
+				m.hsrFocusIndex = (m.hsrFocusIndex + 1) % 7
 				m.focusCurrentInput()
+				if m.ready {
+					m.viewport.SetContent(m.updateViewportContent())
+				}
 				return m, nil
+
+			case "left", "h":
+				if m.hsrFocusIndex == 6 {
+					numPresets := len(models.HSRBannerPresets)
+					m.profile.HSR.TargetBannerIndex = (m.profile.HSR.TargetBannerIndex - 1 + numPresets) % numPresets
+					preset := models.HSRBannerPresets[m.profile.HSR.TargetBannerIndex]
+					if !preset.IsCustom {
+						m.profile.HSR.BannerDays = preset.EstimatedDaysLeft
+						m.hsrInputs[3].SetValue(fmt.Sprintf("%d", preset.EstimatedDaysLeft))
+					}
+					_ = config.SaveProfile(m.profile)
+					if m.ready {
+						m.viewport.SetContent(m.updateViewportContent())
+					}
+					return m, nil
+				}
+			case "right", "l":
+				if m.hsrFocusIndex == 6 {
+					numPresets := len(models.HSRBannerPresets)
+					m.profile.HSR.TargetBannerIndex = (m.profile.HSR.TargetBannerIndex + 1) % numPresets
+					preset := models.HSRBannerPresets[m.profile.HSR.TargetBannerIndex]
+					if !preset.IsCustom {
+						m.profile.HSR.BannerDays = preset.EstimatedDaysLeft
+						m.hsrInputs[3].SetValue(fmt.Sprintf("%d", preset.EstimatedDaysLeft))
+					}
+					_ = config.SaveProfile(m.profile)
+					if m.ready {
+						m.viewport.SetContent(m.updateViewportContent())
+					}
+					return m, nil
+				}
+
 			case "g", " ":
 				if m.hsrFocusIndex == 3 {
 					m.profile.HSR.IsGuaranteed = !m.profile.HSR.IsGuaranteed
 					_ = config.SaveProfile(m.profile)
+					if m.ready {
+						m.viewport.SetContent(m.updateViewportContent())
+					}
+					return m, nil
+				} else if m.hsrFocusIndex == 6 {
+					numPresets := len(models.HSRBannerPresets)
+					m.profile.HSR.TargetBannerIndex = (m.profile.HSR.TargetBannerIndex + 1) % numPresets
+					preset := models.HSRBannerPresets[m.profile.HSR.TargetBannerIndex]
+					if !preset.IsCustom {
+						m.profile.HSR.BannerDays = preset.EstimatedDaysLeft
+						m.hsrInputs[3].SetValue(fmt.Sprintf("%d", preset.EstimatedDaysLeft))
+					}
+					_ = config.SaveProfile(m.profile)
+					if m.ready {
+						m.viewport.SetContent(m.updateViewportContent())
+					}
 					return m, nil
 				}
+
 			case "enter":
 				if m.hsrFocusIndex == 3 {
 					m.profile.HSR.IsGuaranteed = !m.profile.HSR.IsGuaranteed
 					_ = config.SaveProfile(m.profile)
+				} else if m.hsrFocusIndex == 6 {
+					numPresets := len(models.HSRBannerPresets)
+					m.profile.HSR.TargetBannerIndex = (m.profile.HSR.TargetBannerIndex + 1) % numPresets
+					preset := models.HSRBannerPresets[m.profile.HSR.TargetBannerIndex]
+					if !preset.IsCustom {
+						m.profile.HSR.BannerDays = preset.EstimatedDaysLeft
+						m.hsrInputs[3].SetValue(fmt.Sprintf("%d", preset.EstimatedDaysLeft))
+					}
+					_ = config.SaveProfile(m.profile)
 				} else {
-					m.hsrFocusIndex = (m.hsrFocusIndex + 1) % 4
+					m.hsrFocusIndex = (m.hsrFocusIndex + 1) % 7
 					m.focusCurrentInput()
+				}
+				if m.ready {
+					m.viewport.SetContent(m.updateViewportContent())
 				}
 				return m, nil
 			}
 
-			// Forward to focused textinput with Numeric-Only filter (0-9)
-			if m.hsrFocusIndex < 3 {
+			// Forward character inputs to focused textinput with Numeric-Only filter
+			if m.hsrFocusIndex == 0 || m.hsrFocusIndex == 1 || m.hsrFocusIndex == 2 || m.hsrFocusIndex == 4 || m.hsrFocusIndex == 5 {
 				if len(keyStr) == 1 {
 					r := rune(keyStr[0])
 					if !unicode.IsDigit(r) {
-						return m, nil // Ignore non-numeric character
+						return m, nil
 					}
 				}
 
+				inputIdx := m.hsrFocusIndex
+				if m.hsrFocusIndex == 4 {
+					inputIdx = 3
+				} else if m.hsrFocusIndex == 5 {
+					inputIdx = 4
+				}
+
 				var cmd tea.Cmd
-				m.hsrInputs[m.hsrFocusIndex], cmd = m.hsrInputs[m.hsrFocusIndex].Update(msg)
+				m.hsrInputs[inputIdx], cmd = m.hsrInputs[inputIdx].Update(msg)
 				cmds = append(cmds, cmd)
 				m.syncHSRProfile()
 			}
 		} else if m.activeTab == TabR1999 {
 			switch keyStr {
 			case "up":
-				m.r1999FocusIndex = (m.r1999FocusIndex - 1 + 4) % 4
+				m.r1999FocusIndex = (m.r1999FocusIndex - 1 + 7) % 7
 				m.focusCurrentInput()
+				if m.ready {
+					m.viewport.SetContent(m.updateViewportContent())
+				}
 				return m, nil
 			case "down":
-				m.r1999FocusIndex = (m.r1999FocusIndex + 1) % 4
+				m.r1999FocusIndex = (m.r1999FocusIndex + 1) % 7
 				m.focusCurrentInput()
+				if m.ready {
+					m.viewport.SetContent(m.updateViewportContent())
+				}
 				return m, nil
+
+			case "left", "h":
+				if m.r1999FocusIndex == 6 {
+					numPresets := len(models.R1999BannerPresets)
+					m.profile.R1999.TargetBannerIndex = (m.profile.R1999.TargetBannerIndex - 1 + numPresets) % numPresets
+					preset := models.R1999BannerPresets[m.profile.R1999.TargetBannerIndex]
+					if !preset.IsCustom {
+						m.profile.R1999.BannerDays = preset.EstimatedDaysLeft
+						m.r1999Inputs[3].SetValue(fmt.Sprintf("%d", preset.EstimatedDaysLeft))
+					}
+					_ = config.SaveProfile(m.profile)
+					if m.ready {
+						m.viewport.SetContent(m.updateViewportContent())
+					}
+					return m, nil
+				}
+			case "right", "l":
+				if m.r1999FocusIndex == 6 {
+					numPresets := len(models.R1999BannerPresets)
+					m.profile.R1999.TargetBannerIndex = (m.profile.R1999.TargetBannerIndex + 1) % numPresets
+					preset := models.R1999BannerPresets[m.profile.R1999.TargetBannerIndex]
+					if !preset.IsCustom {
+						m.profile.R1999.BannerDays = preset.EstimatedDaysLeft
+						m.r1999Inputs[3].SetValue(fmt.Sprintf("%d", preset.EstimatedDaysLeft))
+					}
+					_ = config.SaveProfile(m.profile)
+					if m.ready {
+						m.viewport.SetContent(m.updateViewportContent())
+					}
+					return m, nil
+				}
+
 			case "g", " ":
 				if m.r1999FocusIndex == 3 {
 					m.profile.R1999.IsGuaranteed = !m.profile.R1999.IsGuaranteed
 					_ = config.SaveProfile(m.profile)
+					if m.ready {
+						m.viewport.SetContent(m.updateViewportContent())
+					}
+					return m, nil
+				} else if m.r1999FocusIndex == 6 {
+					numPresets := len(models.R1999BannerPresets)
+					m.profile.R1999.TargetBannerIndex = (m.profile.R1999.TargetBannerIndex + 1) % numPresets
+					preset := models.R1999BannerPresets[m.profile.R1999.TargetBannerIndex]
+					if !preset.IsCustom {
+						m.profile.R1999.BannerDays = preset.EstimatedDaysLeft
+						m.r1999Inputs[3].SetValue(fmt.Sprintf("%d", preset.EstimatedDaysLeft))
+					}
+					_ = config.SaveProfile(m.profile)
+					if m.ready {
+						m.viewport.SetContent(m.updateViewportContent())
+					}
 					return m, nil
 				}
+
 			case "enter":
 				if m.r1999FocusIndex == 3 {
 					m.profile.R1999.IsGuaranteed = !m.profile.R1999.IsGuaranteed
 					_ = config.SaveProfile(m.profile)
+				} else if m.r1999FocusIndex == 6 {
+					numPresets := len(models.R1999BannerPresets)
+					m.profile.R1999.TargetBannerIndex = (m.profile.R1999.TargetBannerIndex + 1) % numPresets
+					preset := models.R1999BannerPresets[m.profile.R1999.TargetBannerIndex]
+					if !preset.IsCustom {
+						m.profile.R1999.BannerDays = preset.EstimatedDaysLeft
+						m.r1999Inputs[3].SetValue(fmt.Sprintf("%d", preset.EstimatedDaysLeft))
+					}
+					_ = config.SaveProfile(m.profile)
 				} else {
-					m.r1999FocusIndex = (m.r1999FocusIndex + 1) % 4
+					m.r1999FocusIndex = (m.r1999FocusIndex + 1) % 7
 					m.focusCurrentInput()
+				}
+				if m.ready {
+					m.viewport.SetContent(m.updateViewportContent())
 				}
 				return m, nil
 			}
 
-			// Forward to focused textinput with Numeric-Only filter (0-9)
-			if m.r1999FocusIndex < 3 {
+			// Forward character inputs to focused textinput with Numeric-Only filter
+			if m.r1999FocusIndex == 0 || m.r1999FocusIndex == 1 || m.r1999FocusIndex == 2 || m.r1999FocusIndex == 4 || m.r1999FocusIndex == 5 {
 				if len(keyStr) == 1 {
 					r := rune(keyStr[0])
 					if !unicode.IsDigit(r) {
-						return m, nil // Ignore non-numeric character
+						return m, nil
 					}
 				}
 
+				inputIdx := m.r1999FocusIndex
+				if m.r1999FocusIndex == 4 {
+					inputIdx = 3
+				} else if m.r1999FocusIndex == 5 {
+					inputIdx = 4
+				}
+
 				var cmd tea.Cmd
-				m.r1999Inputs[m.r1999FocusIndex], cmd = m.r1999Inputs[m.r1999FocusIndex].Update(msg)
+				m.r1999Inputs[inputIdx], cmd = m.r1999Inputs[inputIdx].Update(msg)
 				cmds = append(cmds, cmd)
 				m.syncR1999Profile()
 			}
 		}
+
+		// Also update viewport for scrolling
+		var vpCmd tea.Cmd
+		m.viewport, vpCmd = m.viewport.Update(msg)
+		cmds = append(cmds, vpCmd)
+	}
+
+	if m.ready {
+		m.viewport.SetContent(m.updateViewportContent())
 	}
 
 	return m, tea.Batch(cmds...)
@@ -317,33 +601,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	var doc strings.Builder
 
-	// Header
+	// Sticky Header
 	header := renderHeader(m.width)
-	doc.WriteString(header + "\n\n")
+	doc.WriteString(header + "\n")
 
-	// Navigation Tabs
+	// Sticky Navigation Tabs
 	tabs := renderTabs(m.activeTab, m.width)
-	doc.WriteString(tabs + "\n\n")
+	doc.WriteString(tabs + "\n")
 
-	// Content Area
-	contentHeight := m.height - 10
-	if contentHeight < 8 {
-		contentHeight = 8
+	// Scrollable Middle Content Viewport
+	if m.ready {
+		doc.WriteString(m.viewport.View() + "\n")
+	} else {
+		doc.WriteString("Loading view...\n")
 	}
 
-	var content string
-	switch m.activeTab {
-	case TabDashboard:
-		content = ui.RenderDashboard(m.profile, m.width, contentHeight)
-	case TabR1999:
-		content = ui.RenderR1999View(m.profile.R1999, m.r1999Inputs, m.r1999FocusIndex, m.width, contentHeight)
-	case TabHSR:
-		content = ui.RenderHSRView(m.profile.HSR, m.hsrInputs, m.hsrFocusIndex, m.width, contentHeight)
-	}
-
-	doc.WriteString(content + "\n\n")
-
-	// Footer Help Menu
+	// Sticky Footer
 	footer := renderFooter(m.width)
 	doc.WriteString(footer)
 
@@ -414,9 +687,10 @@ func renderFooter(width int) string {
 	}{
 		{"Tab / Shift+Tab", "Switch Tab"},
 		{"↑ / ↓ / Enter", "Navigate Fields"},
+		{"← / → / Space", "Change Preset"},
 		{"0-9", "Type Numbers"},
 		{"Space / g", "Toggle 50/50"},
-		{"Ctrl+C / q*", "Quit"},
+		{"Esc / Ctrl+C / q*", "Quit"},
 	}
 
 	var parts []string
@@ -437,7 +711,7 @@ func renderFooter(width int) string {
 }
 
 func main() {
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	p := tea.NewProgram(initialModel(), tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error starting program: %v\n", err)
 		os.Exit(1)

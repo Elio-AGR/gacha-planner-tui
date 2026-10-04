@@ -1,11 +1,15 @@
 package calculator
 
-import "github.com/Elio-AGR/gacha-planner-tui/pkg/models"
+import (
+	"github.com/Elio-AGR/gacha-planner-tui/pkg/models"
+)
 
 const (
 	R1999DropPerPull = 180
 	R1999SoftPity    = 60
 	R1999HardPity    = 70
+	R1999BaseRate    = 0.015
+	R1999SoftRamp    = 0.05
 )
 
 // R1999Result contains calculation outputs for Reverse: 1999.
@@ -19,6 +23,13 @@ type R1999Result struct {
 	SoftPityRemaining          int
 	CanReachFirst6Star         bool
 	CanGuaranteeTarget         bool
+
+	// Win Rate & Banner Projection
+	WinRate               float64
+	IncomePulls           int
+	ProjectedPulls        int
+	ProjectedShortfall    int
+	ProjectedCanGuarantee bool
 }
 
 // CalculateR1999 performs gacha pull calculations based on the user's Reverse: 1999 profile.
@@ -26,7 +37,6 @@ func CalculateR1999(profile models.R1999Profile) R1999Result {
 	unilogsFromDrops := profile.ClearDrop / R1999DropPerPull
 	totalPulls := profile.Unilog + unilogsFromDrops
 
-	// Hard pity for a single 6-star is 70 pulls
 	pullsToFirst6Star := R1999HardPity - profile.CurrentPity
 	if pullsToFirst6Star < 0 {
 		pullsToFirst6Star = 0
@@ -37,13 +47,11 @@ func CalculateR1999(profile models.R1999Profile) R1999Result {
 		remainingToFirst6Star = 0
 	}
 
-	// Soft pity check (starts at 60)
 	softPityRemaining := R1999SoftPity - profile.CurrentPity
 	if softPityRemaining < 0 {
 		softPityRemaining = 0
 	}
 
-	// Worst case target guarantee: 70 if already guaranteed, 140 if 50/50
 	maxPullsToTarget := R1999HardPity
 	if !profile.IsGuaranteed {
 		maxPullsToTarget = R1999HardPity * 2
@@ -53,6 +61,30 @@ func CalculateR1999(profile models.R1999Profile) R1999Result {
 	remainingToTarget := maxPullsToTarget - totalEffective
 	if remainingToTarget < 0 {
 		remainingToTarget = 0
+	}
+
+	// Win Rate Calculation
+	winRate := calculateWinRate(profile.CurrentPity, totalPulls, profile.IsGuaranteed, R1999SoftPity, R1999HardPity, R1999BaseRate, R1999SoftRamp)
+
+	// Daily Income & Banner Countdown Projection
+	days := profile.BannerDays
+	if days < 0 {
+		days = 0
+	}
+	dailyInc := profile.DailyIncome
+	if dailyInc < 0 {
+		dailyInc = 0
+	}
+
+	incomeDrops := days * dailyInc
+	incomePulls := incomeDrops / R1999DropPerPull
+	projectedPulls := totalPulls + incomePulls
+	projectedEffective := profile.CurrentPity + projectedPulls
+
+	projectedShortfall := maxPullsToTarget - projectedEffective
+	projectedCanGuarantee := projectedShortfall <= 0
+	if projectedShortfall < 0 {
+		projectedShortfall = 0
 	}
 
 	return R1999Result{
@@ -65,5 +97,11 @@ func CalculateR1999(profile models.R1999Profile) R1999Result {
 		SoftPityRemaining:          softPityRemaining,
 		CanReachFirst6Star:         totalPulls >= pullsToFirst6Star,
 		CanGuaranteeTarget:         remainingToTarget == 0,
+
+		WinRate:               winRate,
+		IncomePulls:           incomePulls,
+		ProjectedPulls:        projectedPulls,
+		ProjectedShortfall:    projectedShortfall,
+		ProjectedCanGuarantee: projectedCanGuarantee,
 	}
 }

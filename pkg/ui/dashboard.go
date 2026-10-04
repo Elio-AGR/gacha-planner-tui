@@ -40,6 +40,7 @@ func RenderDashboard(profile models.UserProfile, width int, height int) string {
 	}
 
 	totalCombinedPulls := hsrRes.TotalPullsAvailable + r1999Res.TotalPullsAvailable
+	projectedCombinedPulls := hsrRes.ProjectedPulls + r1999Res.ProjectedPulls
 
 	summaryBox := lipgloss.NewStyle().
 		Border(lipgloss.DoubleBorder()).
@@ -47,9 +48,10 @@ func RenderDashboard(profile models.UserProfile, width int, height int) string {
 		Padding(0, 1).
 		Width(availableWidth).
 		Render(fmt.Sprintf(
-			"%s %s",
+			"%s %s | %s",
 			lipgloss.NewStyle().Foreground(ColorMauve).Bold(true).Render("🎲 Combined Savings Overview:"),
-			lipgloss.NewStyle().Foreground(ColorGreen).Bold(true).Render(fmt.Sprintf("%d Total Pulls Available Across All Games", totalCombinedPulls)),
+			lipgloss.NewStyle().Foreground(ColorGreen).Bold(true).Render(fmt.Sprintf("%d Current Pulls", totalCombinedPulls)),
+			lipgloss.NewStyle().Foreground(ColorPink).Bold(true).Render(fmt.Sprintf("%d Projected End-of-Banner Pulls", projectedCombinedPulls)),
 		))
 
 	return lipgloss.JoinVertical(lipgloss.Left, cardsContainer, "", summaryBox)
@@ -71,17 +73,29 @@ func renderHSRDashboardCard(p models.HSRProfile, res calculator.HSRResult, cardW
 		statusBadge = StatusNeedPullsStyle.Render(fmt.Sprintf("⚡ Need %d More Pulls", res.RemainingPullsToTarget))
 	}
 
+	// Projection Indicator Badge
+	var projBadge string
+	if res.ProjectedCanGuarantee {
+		projBadge = StatusReadyStyle.Render("✅ Projected Target Achievable")
+	} else {
+		projBadge = StatusNeedPullsStyle.Render(fmt.Sprintf("⚡ Short by %d Pulls", res.ProjectedShortfall))
+	}
+
+	winRateStr := fmt.Sprintf("%.1f%%", res.WinRate)
+
 	lines := []string{
 		title,
 		"",
 		fmt.Sprintf("%s %s", LabelStyle.Render("Total Savings:"), ValPinkStyle.Render(fmt.Sprintf("%d Jades + %d Passes", p.StellarJade, p.SpecialPass))),
-		fmt.Sprintf("%s %s", LabelStyle.Render("Total Pulls  :"), ValGreenStyle.Render(fmt.Sprintf("%d Pulls", res.TotalPullsAvailable))),
+		fmt.Sprintf("%s %s", LabelStyle.Render("Current Pulls:"), ValGreenStyle.Render(fmt.Sprintf("%d Pulls", res.TotalPullsAvailable))),
 		fmt.Sprintf("%s %s (%s)", LabelStyle.Render("Current Pity :"), ValYellowStyle.Render(fmt.Sprintf("%d / %d", p.CurrentPity, calculator.HSRHardPity)), pityStatus),
+		fmt.Sprintf("%s %s", LabelStyle.Render("Win Rate     :"), ValGreenStyle.Render(winRateStr)),
 		"",
-		fmt.Sprintf("%s %s", LabelStyle.Render("Status       :"), statusBadge),
+		fmt.Sprintf("%s %s", LabelStyle.Render("Current Status  :"), statusBadge),
+		fmt.Sprintf("%s %s", LabelStyle.Render("Banner Projection:"), projBadge),
 		"",
 		ValSubtextStyle.Render(fmt.Sprintf("• Soft Pity in : %d pulls", res.SoftPityRemaining)),
-		ValSubtextStyle.Render(fmt.Sprintf("• 5★ Guarantee : %d pulls", res.PullsToFirst5Star)),
+		ValSubtextStyle.Render(fmt.Sprintf("• End-of-Banner: %d pulls (+%d from %dd daily)", res.ProjectedPulls, res.IncomePulls, p.BannerDays)),
 	}
 
 	return HSRCardStyle.
@@ -105,17 +119,29 @@ func renderR1999DashboardCard(p models.R1999Profile, res calculator.R1999Result,
 		statusBadge = StatusNeedPullsStyle.Render(fmt.Sprintf("⚡ Need %d More Pulls", res.RemainingPullsToTarget))
 	}
 
+	// Projection Indicator Badge
+	var projBadge string
+	if res.ProjectedCanGuarantee {
+		projBadge = StatusReadyStyle.Render("✅ Projected Target Achievable")
+	} else {
+		projBadge = StatusNeedPullsStyle.Render(fmt.Sprintf("⚡ Short by %d Pulls", res.ProjectedShortfall))
+	}
+
+	winRateStr := fmt.Sprintf("%.1f%%", res.WinRate)
+
 	lines := []string{
 		title,
 		"",
 		fmt.Sprintf("%s %s", LabelStyle.Render("Total Savings:"), ValTealStyle.Render(fmt.Sprintf("%d Drops + %d Unilogs", p.ClearDrop, p.Unilog))),
-		fmt.Sprintf("%s %s", LabelStyle.Render("Total Pulls  :"), ValGreenStyle.Render(fmt.Sprintf("%d Pulls", res.TotalPullsAvailable))),
+		fmt.Sprintf("%s %s", LabelStyle.Render("Current Pulls:"), ValGreenStyle.Render(fmt.Sprintf("%d Pulls", res.TotalPullsAvailable))),
 		fmt.Sprintf("%s %s (%s)", LabelStyle.Render("Current Pity :"), ValYellowStyle.Render(fmt.Sprintf("%d / %d", p.CurrentPity, calculator.R1999HardPity)), pityStatus),
+		fmt.Sprintf("%s %s", LabelStyle.Render("Win Rate     :"), ValGreenStyle.Render(winRateStr)),
 		"",
-		fmt.Sprintf("%s %s", LabelStyle.Render("Status       :"), statusBadge),
+		fmt.Sprintf("%s %s", LabelStyle.Render("Current Status  :"), statusBadge),
+		fmt.Sprintf("%s %s", LabelStyle.Render("Banner Projection:"), projBadge),
 		"",
 		ValSubtextStyle.Render(fmt.Sprintf("• Soft Pity in : %d pulls", res.SoftPityRemaining)),
-		ValSubtextStyle.Render(fmt.Sprintf("• 6★ Guarantee : %d pulls", res.PullsToFirst6Star)),
+		ValSubtextStyle.Render(fmt.Sprintf("• End-of-Banner: %d pulls (+%d from %dd daily)", res.ProjectedPulls, res.IncomePulls, p.BannerDays)),
 	}
 
 	return R1999CardStyle.

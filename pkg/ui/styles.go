@@ -28,7 +28,7 @@ var (
 	ColorCrust     = lipgloss.Color("#11111b")
 )
 
-// Global Reusable UI Styles
+// Global Reusable UI Styles (Compact padding)
 var (
 	// Header
 	HeaderTitleStyle = lipgloss.NewStyle().
@@ -62,21 +62,21 @@ var (
 			Padding(0, 2).
 			MarginRight(1)
 
-	// Cards
+	// Cards (Compact padding: 0 top/bottom, 1 left/right)
 	HSRCardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorPink).
-			Padding(1, 2)
+			Padding(0, 1)
 
 	R1999CardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorTeal).
-			Padding(1, 2)
+			Padding(0, 1)
 
 	DashboardCardStyle = lipgloss.NewStyle().
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(ColorMauve).
-				Padding(1, 2)
+				Padding(0, 1)
 
 	// Status Badges
 	StatusReadyStyle = lipgloss.NewStyle().
