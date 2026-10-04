@@ -6,14 +6,15 @@ import (
 
 	"github.com/Elio-AGR/gacha-planner-tui/pkg/calculator"
 	"github.com/Elio-AGR/gacha-planner-tui/pkg/models"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// RenderHSRView renders the detailed Honkai: Star Rail planner tab.
-func RenderHSRView(profile models.HSRProfile, width int, height int) string {
+// RenderHSRView renders the interactive Honkai: Star Rail planner tab.
+func RenderHSRView(profile models.HSRProfile, inputs [3]textinput.Model, focusIndex int, width int, height int) string {
 	res := calculator.CalculateHSR(profile)
 
-	title := lipgloss.NewStyle().Bold(true).Foreground(ColorPink).Render("🌌 HONKAI: STAR RAIL DETAILED PLANNER")
+	title := lipgloss.NewStyle().Bold(true).Foreground(ColorPink).Render("🌌 HONKAI: STAR RAIL PLANNER & INPUT FORM")
 
 	pityStatus := "50/50 Next (On Banner)"
 	if profile.IsGuaranteed {
@@ -27,16 +28,42 @@ func RenderHSRView(profile models.HSRProfile, width int, height int) string {
 		statusBadge = StatusNeedPullsStyle.Render(fmt.Sprintf("⚡ NEED %d MORE PULLS TO GUARANTEE TARGET", res.RemainingPullsToTarget))
 	}
 
-	rows := []string{
-		title,
-		"",
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Target Character"), ValPinkStyle.Render("Feixiao / Acheron")),
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Stellar Jade Savings"), ValPinkStyle.Render(fmt.Sprintf("%d Jades (%d Passes)", profile.StellarJade, res.PassesFromJades))),
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Special Pass Count"), ValPinkStyle.Render(fmt.Sprintf("%d Passes", profile.SpecialPass))),
+	// Focus indicators for rows
+	pointer := func(idx int) string {
+		if idx == focusIndex {
+			return lipgloss.NewStyle().Foreground(ColorPink).Bold(true).Render("▶ ")
+		}
+		return "  "
+	}
+
+	// Toggle row view
+	toggleText := "[ ⚡ 50/50 NEXT ] (Press Space/g/Enter to toggle)"
+	if profile.IsGuaranteed {
+		toggleText = "[ ✅ GUARANTEED ] (Press Space/g/Enter to toggle)"
+	}
+	if focusIndex == 3 {
+		toggleText = lipgloss.NewStyle().Foreground(ColorCrust).Background(ColorPink).Bold(true).Render(toggleText)
+	} else {
+		toggleText = lipgloss.NewStyle().Foreground(ColorPink).Bold(true).Render(toggleText)
+	}
+
+	formRows := []string{
+		fmt.Sprintf("%s%s : %s", pointer(0), LabelStyle.Width(20).Render("Stellar Jades"), inputs[0].View()),
+		fmt.Sprintf("%s%s : %s", pointer(1), LabelStyle.Width(20).Render("Special Passes"), inputs[1].View()),
+		fmt.Sprintf("%s%s : %s", pointer(2), LabelStyle.Width(20).Render("Current Pity (0-90)"), inputs[2].View()),
+		fmt.Sprintf("%s%s : %s", pointer(3), LabelStyle.Width(20).Render("Guaranteed Status"), toggleText),
+	}
+
+	formBox := lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(ColorSurface2).
+		Padding(0, 1).
+		Render(strings.Join(formRows, "\n"))
+
+	calcRows := []string{
+		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Passes from Jades"), ValPinkStyle.Render(fmt.Sprintf("%d Passes", res.PassesFromJades))),
 		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Total Pulls Available"), ValGreenStyle.Render(fmt.Sprintf("%d Pulls", res.TotalPullsAvailable))),
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Current Pity State"), ValYellowStyle.Render(fmt.Sprintf("%d / %d", profile.CurrentPity, calculator.HSRHardPity))),
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Guarantee Status"), ValTealStyle.Render(pityStatus)),
-		"",
+		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Current Pity State"), ValYellowStyle.Render(fmt.Sprintf("%d / %d (%s)", profile.CurrentPity, calculator.HSRHardPity, pityStatus))),
 		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Planner Status"), statusBadge),
 		"",
 		ValSubtextStyle.Render(fmt.Sprintf("• Soft Pity Threshold (74) : %d pulls remaining", res.SoftPityRemaining)),
@@ -49,9 +76,17 @@ func RenderHSRView(profile models.HSRProfile, width int, height int) string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(ColorSurface2).
 		Padding(0, 1).
-		Render(ValSubtextStyle.Render("💡 Tip: Soft pity in Honkai: Star Rail begins at 74 pulls with exponential rate increase up to 90."))
+		Render(ValSubtextStyle.Render("💡 Tip: Use ↑/↓ to navigate fields. Type to edit values. Changes auto-save instantly."))
 
 	return HSRCardStyle.
 		Width(width - 6).
-		Render(lipgloss.JoinVertical(lipgloss.Left, strings.Join(rows, "\n"), infoBox))
+		Render(lipgloss.JoinVertical(
+			lipgloss.Left,
+			title,
+			"",
+			formBox,
+			"",
+			strings.Join(calcRows, "\n"),
+			infoBox,
+		))
 }

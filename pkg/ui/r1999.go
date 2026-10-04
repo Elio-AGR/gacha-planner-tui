@@ -6,14 +6,15 @@ import (
 
 	"github.com/Elio-AGR/gacha-planner-tui/pkg/calculator"
 	"github.com/Elio-AGR/gacha-planner-tui/pkg/models"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// RenderR1999View renders the detailed Reverse: 1999 planner tab.
-func RenderR1999View(profile models.R1999Profile, width int, height int) string {
+// RenderR1999View renders the interactive Reverse: 1999 planner tab.
+func RenderR1999View(profile models.R1999Profile, inputs [3]textinput.Model, focusIndex int, width int, height int) string {
 	res := calculator.CalculateR1999(profile)
 
-	title := lipgloss.NewStyle().Bold(true).Foreground(ColorTeal).Render("📜 REVERSE: 1999 DETAILED PLANNER")
+	title := lipgloss.NewStyle().Bold(true).Foreground(ColorTeal).Render("📜 REVERSE: 1999 PLANNER & INPUT FORM")
 
 	pityStatus := "50/50 Next (On Banner)"
 	if profile.IsGuaranteed {
@@ -27,16 +28,42 @@ func RenderR1999View(profile models.R1999Profile, width int, height int) string 
 		statusBadge = StatusNeedPullsStyle.Render(fmt.Sprintf("⚡ NEED %d MORE PULLS TO GUARANTEE TARGET", res.RemainingPullsToTarget))
 	}
 
-	rows := []string{
-		title,
-		"",
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Target Character"), ValTealStyle.Render("Jiu Niangzi / Lucy")),
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Clear Drops Savings"), ValTealStyle.Render(fmt.Sprintf("%d Drops (%d Pulls)", profile.ClearDrop, res.UnilogsFromDrops))),
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Unilog Inventory"), ValTealStyle.Render(fmt.Sprintf("%d Unilogs", profile.Unilog))),
+	// Focus indicators for rows
+	pointer := func(idx int) string {
+		if idx == focusIndex {
+			return lipgloss.NewStyle().Foreground(ColorTeal).Bold(true).Render("▶ ")
+		}
+		return "  "
+	}
+
+	// Toggle row view
+	toggleText := "[ ⚡ 50/50 NEXT ] (Press Space/g/Enter to toggle)"
+	if profile.IsGuaranteed {
+		toggleText = "[ ✅ GUARANTEED ] (Press Space/g/Enter to toggle)"
+	}
+	if focusIndex == 3 {
+		toggleText = lipgloss.NewStyle().Foreground(ColorCrust).Background(ColorTeal).Bold(true).Render(toggleText)
+	} else {
+		toggleText = lipgloss.NewStyle().Foreground(ColorTeal).Bold(true).Render(toggleText)
+	}
+
+	formRows := []string{
+		fmt.Sprintf("%s%s : %s", pointer(0), LabelStyle.Width(20).Render("Clear Drops"), inputs[0].View()),
+		fmt.Sprintf("%s%s : %s", pointer(1), LabelStyle.Width(20).Render("Unilogs"), inputs[1].View()),
+		fmt.Sprintf("%s%s : %s", pointer(2), LabelStyle.Width(20).Render("Current Pity (0-70)"), inputs[2].View()),
+		fmt.Sprintf("%s%s : %s", pointer(3), LabelStyle.Width(20).Render("Guaranteed Status"), toggleText),
+	}
+
+	formBox := lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(ColorSurface2).
+		Padding(0, 1).
+		Render(strings.Join(formRows, "\n"))
+
+	calcRows := []string{
+		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Unilogs from Drops"), ValTealStyle.Render(fmt.Sprintf("%d Unilogs", res.UnilogsFromDrops))),
 		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Total Pulls Available"), ValGreenStyle.Render(fmt.Sprintf("%d Pulls", res.TotalPullsAvailable))),
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Current Pity State"), ValYellowStyle.Render(fmt.Sprintf("%d / %d", profile.CurrentPity, calculator.R1999HardPity))),
-		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Guarantee Status"), ValPinkStyle.Render(pityStatus)),
-		"",
+		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Current Pity State"), ValYellowStyle.Render(fmt.Sprintf("%d / %d (%s)", profile.CurrentPity, calculator.R1999HardPity, pityStatus))),
 		fmt.Sprintf("%s : %s", LabelStyle.Width(22).Render("Planner Status"), statusBadge),
 		"",
 		ValSubtextStyle.Render(fmt.Sprintf("• Soft Pity Threshold (60) : %d pulls remaining", res.SoftPityRemaining)),
@@ -49,9 +76,17 @@ func RenderR1999View(profile models.R1999Profile, width int, height int) string 
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(ColorSurface2).
 		Padding(0, 1).
-		Render(ValSubtextStyle.Render("💡 Tip: Hard pity in Reverse: 1999 is at 70 pulls with soft pity rate increases starting at 50 pulls."))
+		Render(ValSubtextStyle.Render("💡 Tip: Use ↑/↓ to navigate fields. Type to edit values. Changes auto-save instantly."))
 
 	return R1999CardStyle.
 		Width(width - 6).
-		Render(lipgloss.JoinVertical(lipgloss.Left, strings.Join(rows, "\n"), infoBox))
+		Render(lipgloss.JoinVertical(
+			lipgloss.Left,
+			title,
+			"",
+			formBox,
+			"",
+			strings.Join(calcRows, "\n"),
+			infoBox,
+		))
 }

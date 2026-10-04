@@ -3,11 +3,14 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/Elio-AGR/gacha-planner-tui/pkg/config"
 	"github.com/Elio-AGR/gacha-planner-tui/pkg/models"
 	"github.com/Elio-AGR/gacha-planner-tui/pkg/ui"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -31,6 +34,24 @@ type model struct {
 	width     int
 	height    int
 	profile   models.UserProfile
+
+	// Form inputs for HSR
+	hsrFocusIndex int
+	hsrInputs     [3]textinput.Model // 0: Jades, 1: Passes, 2: Pity
+
+	// Form inputs for R1999
+	r1999FocusIndex int
+	r1999Inputs     [3]textinput.Model // 0: Drops, 1: Unilogs, 2: Pity
+}
+
+func createNumInput(placeholder string, val int) textinput.Model {
+	ti := textinput.New()
+	ti.Placeholder = placeholder
+	ti.CharLimit = 7
+	ti.Width = 10
+	ti.SetValue(fmt.Sprintf("%d", val))
+	ti.Prompt = " "
+	return ti
 }
 
 func initialModel() model {
@@ -39,47 +60,258 @@ func initialModel() model {
 		profile = models.NewZeroProfile()
 	}
 
-	return model{
-		activeTab: TabDashboard,
-		width:     90,
-		height:    28,
-		profile:   profile,
+	m := model{
+		activeTab:       TabDashboard,
+		width:           90,
+		height:          30,
+		profile:         profile,
+		hsrFocusIndex:   0,
+		r1999FocusIndex: 0,
+	}
+
+	// Initialize HSR Inputs
+	m.hsrInputs[0] = createNumInput("19200", profile.HSR.StellarJade)
+	m.hsrInputs[1] = createNumInput("15", profile.HSR.SpecialPass)
+	m.hsrInputs[2] = createNumInput("65", profile.HSR.CurrentPity)
+
+	// Initialize R1999 Inputs
+	m.r1999Inputs[0] = createNumInput("14400", profile.R1999.ClearDrop)
+	m.r1999Inputs[1] = createNumInput("68", profile.R1999.Unilog)
+	m.r1999Inputs[2] = createNumInput("42", profile.R1999.CurrentPity)
+
+	m.focusCurrentInput()
+	return m
+}
+
+func (m model) isInputFocused() bool {
+	if m.activeTab == TabHSR && m.hsrFocusIndex >= 0 && m.hsrFocusIndex < 3 {
+		return true
+	}
+	if m.activeTab == TabR1999 && m.r1999FocusIndex >= 0 && m.r1999FocusIndex < 3 {
+		return true
+	}
+	return false
+}
+
+func (m *model) focusCurrentInput() {
+	// Blur all HSR inputs
+	for i := range m.hsrInputs {
+		m.hsrInputs[i].Blur()
+	}
+	if m.activeTab == TabHSR && m.hsrFocusIndex >= 0 && m.hsrFocusIndex < 3 {
+		m.hsrInputs[m.hsrFocusIndex].Focus()
+	}
+
+	// Blur all R1999 inputs
+	for i := range m.r1999Inputs {
+		m.r1999Inputs[i].Blur()
+	}
+	if m.activeTab == TabR1999 && m.r1999FocusIndex >= 0 && m.r1999FocusIndex < 3 {
+		m.r1999Inputs[m.r1999FocusIndex].Focus()
 	}
 }
 
+func (m *model) syncHSRProfile() {
+	valStr := m.hsrInputs[0].Value()
+	if valStr == "" {
+		m.profile.HSR.StellarJade = 0
+	} else if jades, err := strconv.Atoi(valStr); err == nil && jades >= 0 {
+		m.profile.HSR.StellarJade = jades
+	}
+
+	valStr = m.hsrInputs[1].Value()
+	if valStr == "" {
+		m.profile.HSR.SpecialPass = 0
+	} else if passes, err := strconv.Atoi(valStr); err == nil && passes >= 0 {
+		m.profile.HSR.SpecialPass = passes
+	}
+
+	valStr = m.hsrInputs[2].Value()
+	if valStr == "" {
+		m.profile.HSR.CurrentPity = 0
+	} else if pity, err := strconv.Atoi(valStr); err == nil && pity >= 0 {
+		if pity > 90 {
+			pity = 90
+		}
+		m.profile.HSR.CurrentPity = pity
+	}
+
+	_ = config.SaveProfile(m.profile)
+}
+
+func (m *model) syncR1999Profile() {
+	valStr := m.r1999Inputs[0].Value()
+	if valStr == "" {
+		m.profile.R1999.ClearDrop = 0
+	} else if drops, err := strconv.Atoi(valStr); err == nil && drops >= 0 {
+		m.profile.R1999.ClearDrop = drops
+	}
+
+	valStr = m.r1999Inputs[1].Value()
+	if valStr == "" {
+		m.profile.R1999.Unilog = 0
+	} else if unilogs, err := strconv.Atoi(valStr); err == nil && unilogs >= 0 {
+		m.profile.R1999.Unilog = unilogs
+	}
+
+	valStr = m.r1999Inputs[2].Value()
+	if valStr == "" {
+		m.profile.R1999.CurrentPity = 0
+	} else if pity, err := strconv.Atoi(valStr); err == nil && pity >= 0 {
+		if pity > 70 {
+			pity = 70
+		}
+		m.profile.R1999.CurrentPity = pity
+	}
+
+	_ = config.SaveProfile(m.profile)
+}
+
 func (m model) Init() tea.Cmd {
-	return nil
+	return textinput.Blink
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
-			// Auto-save on exit
+		keyStr := msg.String()
+		isFocused := m.isInputFocused()
+
+		// Emergency exit always available
+		if keyStr == "ctrl+c" {
 			_ = config.SaveProfile(m.profile)
 			return m, tea.Quit
+		}
 
-		case "tab", "right", "l":
+		// Quit shortcut 'q' only active when NOT focused inside a numeric text input
+		if keyStr == "q" && !isFocused {
+			_ = config.SaveProfile(m.profile)
+			return m, tea.Quit
+		}
+
+		// Tab switching via Tab / Shift+Tab always available
+		if keyStr == "tab" {
 			m.activeTab = (m.activeTab + 1) % len(tabNames)
-
-		case "shift+tab", "left", "h":
+			m.focusCurrentInput()
+			return m, nil
+		}
+		if keyStr == "shift+tab" {
 			m.activeTab = (m.activeTab - 1 + len(tabNames)) % len(tabNames)
+			m.focusCurrentInput()
+			return m, nil
+		}
 
-		case "1":
-			m.activeTab = TabDashboard
-		case "2":
-			m.activeTab = TabR1999
-		case "3":
-			m.activeTab = TabHSR
+		// Direct numeric tab selection (1, 2, 3) only active when NOT focused in text input
+		if !isFocused {
+			switch keyStr {
+			case "1":
+				m.activeTab = TabDashboard
+				m.focusCurrentInput()
+				return m, nil
+			case "2":
+				m.activeTab = TabR1999
+				m.focusCurrentInput()
+				return m, nil
+			case "3":
+				m.activeTab = TabHSR
+				m.focusCurrentInput()
+				return m, nil
+			}
+		}
+
+		// Handle Form Navigation and Text Editing per Tab
+		if m.activeTab == TabHSR {
+			switch keyStr {
+			case "up":
+				m.hsrFocusIndex = (m.hsrFocusIndex - 1 + 4) % 4
+				m.focusCurrentInput()
+				return m, nil
+			case "down":
+				m.hsrFocusIndex = (m.hsrFocusIndex + 1) % 4
+				m.focusCurrentInput()
+				return m, nil
+			case "g", " ":
+				if m.hsrFocusIndex == 3 {
+					m.profile.HSR.IsGuaranteed = !m.profile.HSR.IsGuaranteed
+					_ = config.SaveProfile(m.profile)
+					return m, nil
+				}
+			case "enter":
+				if m.hsrFocusIndex == 3 {
+					m.profile.HSR.IsGuaranteed = !m.profile.HSR.IsGuaranteed
+					_ = config.SaveProfile(m.profile)
+				} else {
+					m.hsrFocusIndex = (m.hsrFocusIndex + 1) % 4
+					m.focusCurrentInput()
+				}
+				return m, nil
+			}
+
+			// Forward to focused textinput with Numeric-Only filter (0-9)
+			if m.hsrFocusIndex < 3 {
+				if len(keyStr) == 1 {
+					r := rune(keyStr[0])
+					if !unicode.IsDigit(r) {
+						return m, nil // Ignore non-numeric character
+					}
+				}
+
+				var cmd tea.Cmd
+				m.hsrInputs[m.hsrFocusIndex], cmd = m.hsrInputs[m.hsrFocusIndex].Update(msg)
+				cmds = append(cmds, cmd)
+				m.syncHSRProfile()
+			}
+		} else if m.activeTab == TabR1999 {
+			switch keyStr {
+			case "up":
+				m.r1999FocusIndex = (m.r1999FocusIndex - 1 + 4) % 4
+				m.focusCurrentInput()
+				return m, nil
+			case "down":
+				m.r1999FocusIndex = (m.r1999FocusIndex + 1) % 4
+				m.focusCurrentInput()
+				return m, nil
+			case "g", " ":
+				if m.r1999FocusIndex == 3 {
+					m.profile.R1999.IsGuaranteed = !m.profile.R1999.IsGuaranteed
+					_ = config.SaveProfile(m.profile)
+					return m, nil
+				}
+			case "enter":
+				if m.r1999FocusIndex == 3 {
+					m.profile.R1999.IsGuaranteed = !m.profile.R1999.IsGuaranteed
+					_ = config.SaveProfile(m.profile)
+				} else {
+					m.r1999FocusIndex = (m.r1999FocusIndex + 1) % 4
+					m.focusCurrentInput()
+				}
+				return m, nil
+			}
+
+			// Forward to focused textinput with Numeric-Only filter (0-9)
+			if m.r1999FocusIndex < 3 {
+				if len(keyStr) == 1 {
+					r := rune(keyStr[0])
+					if !unicode.IsDigit(r) {
+						return m, nil // Ignore non-numeric character
+					}
+				}
+
+				var cmd tea.Cmd
+				m.r1999Inputs[m.r1999FocusIndex], cmd = m.r1999Inputs[m.r1999FocusIndex].Update(msg)
+				cmds = append(cmds, cmd)
+				m.syncR1999Profile()
+			}
 		}
 	}
 
-	return m, nil
+	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() string {
@@ -104,9 +336,9 @@ func (m model) View() string {
 	case TabDashboard:
 		content = ui.RenderDashboard(m.profile, m.width, contentHeight)
 	case TabR1999:
-		content = ui.RenderR1999View(m.profile.R1999, m.width, contentHeight)
+		content = ui.RenderR1999View(m.profile.R1999, m.r1999Inputs, m.r1999FocusIndex, m.width, contentHeight)
 	case TabHSR:
-		content = ui.RenderHSRView(m.profile.HSR, m.width, contentHeight)
+		content = ui.RenderHSRView(m.profile.HSR, m.hsrInputs, m.hsrFocusIndex, m.width, contentHeight)
 	}
 
 	doc.WriteString(content + "\n\n")
@@ -181,9 +413,11 @@ func renderFooter(width int) string {
 		key  string
 		desc string
 	}{
-		{"1 / 2 / 3", "Select Tab"},
 		{"Tab / Shift+Tab", "Switch Tab"},
-		{"q / Ctrl+C", "Quit"},
+		{"↑ / ↓ / Enter", "Navigate Fields"},
+		{"0-9", "Type Numbers"},
+		{"Space / g", "Toggle 50/50"},
+		{"Ctrl+C / q*", "Quit"},
 	}
 
 	var parts []string
