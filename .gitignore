@@ -1,0 +1,18 @@
+# Binaries and executables
+gacha-planner-tui
+*.exe
+*.exe?
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go build cache and test logs
+*.log
+/vendor/
+
+# Local data & OS files
+.DS_Store
+Thumbs.db
+data.json
